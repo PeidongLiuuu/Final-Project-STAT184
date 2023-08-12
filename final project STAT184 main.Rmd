@@ -1,0 +1,164 @@
+---
+title: "Final project main"
+author: "Liu Peidong"
+date: "2023-08-07"
+output: html_document
+---
+
+## Research Question 
+
+The project aims to investigate the intriguing relationship between the price of maple syrup and the average income across various states in the United States. Maple syrup, a culturally significant and economically valuable product, is known for its complex market dynamics. This study seeks to uncover whether a discernible correlation exists between maple syrup prices and the average income in different states, shedding light on potential economic and cultural factors that influence this connection.
+
+In this project, we will analysis the relation of both data sets from two different scopes. The first case is to uncover the relation of maple syrup price in different with respect to income differed from states. The second case is to find if the relation exist for one particular state for price of syrup and income in the time span of 20 years form 2000 to 2021. 
+
+
+
+#### loading nesscessary packages
+```{r , echo=FALSE}
+rm(list = ls())
+
+library(rvest)
+library(tidyverse)
+library(mosaic)
+
+```
+
+
+
+## Data Processing 
+
+#### Data Intake 
+
+```{r}
+# loading data for average maple syrup price and other information
+Syrup_price <- read.file("Domestic_Maple_Syrup_Production_2000-2021.csv")
+
+# loading data for income of each states in 2022
+web_page_states_income_2022  <- "https://fred.stlouisfed.org/release/tables?rid=110&eid=257197&od=2021-01-01#"
+Income_states <- web_page_states_income_2022 %>%
+  read_html() %>%
+  html_nodes(css = "table") %>%
+  html_table(fill = TRUE)
+income_table_2021 <- Income_states[[1]]
+income_table_2021 <- income_table_2021[2:3]
+
+colnames(income_table_2021)[1] <- "State"
+
+# loading data for median income of Michigan state from year 2000 to 2021
+median_income_Michigan_2000_21 <- read.file("MEHOINUSMIA672N.csv")
+
+
+
+# inspect data
+
+head(Syrup_price , n = 10)
+head(income_table_2021 , n = 10)
+head(median_income_Michigan_2000_21 , n = 10)
+
+
+```
+
+
+## Case 1
+
+#### Data Wrangling 
+```{r}
+# extract syrup price in each states for the year of 2021
+States_Syrup_price <- Syrup_price %>%
+                        distinct(State)
+
+Syrup_price_2021 <- Syrup_price %>%
+                    filter(Year == 2021) %>%
+                    select(State, Avg_Price , Year)
+
+
+# join tables which generates result for the average income and price of maple syrup correspond to each states. Then assign the new table as "Case_1_table" for analysis. 
+
+Case_1_table <-  States_Syrup_price %>%
+                    left_join(Syrup_price_2021) %>%
+                    drop_na() %>%
+                    inner_join(income_table_2021 %>% rename("Income" = Dollars)) %>%
+                    arrange(Income)
+
+
+```
+
+
+#### Date Visualization
+
+```{r}
+Case_1_table %>%
+  ggplot(aes(x= Income , y = Avg_Price , color = State)) +
+  geom_point() +
+  labs(caption = "Figure #1:Income for different states with average price of maple syrup in color") +
+  theme(plot.caption = element_text(size = 10 , hjust=-0.1))
+
+
+```
+
+
+
+
+
+## Case 2
+
+#### Data Wrangling 
+```{r}
+# select the data of maple syrup price only for Michigan state from 2000 to 2021
+Syrup_price_Michigan <- Syrup_price %>%
+  filter(grepl("Michigan", State, ignore.case = TRUE)) %>%
+  select(State, Avg_Price,Year) %>%
+  arrange(Year)
+
+
+Case_2_table <- Syrup_price_Michigan %>%
+  inner_join(median_income_Michigan_2000_21 %>%
+               rename("income_median" = MEHOINUSMIA672N) %>%
+               select(income_median,DATE) , by = c("Year" = "DATE")
+               )
+
+
+```
+
+
+#### Date Visualization
+```{r}
+
+ggplot(Case_2_table) +
+  aes(x = Year, y = income_median, colour = Avg_Price) +
+  geom_point(shape = "circle", size = 3.6) +
+  scale_color_gradient() +
+  theme_minimal() +
+  geom_smooth(method = lm , se = FALSE) +
+  labs(caption = "Figure #2: median income in Michigan over 20 years with labled maple syrup price") +
+  theme(plot.caption = element_text(size = 10, hjust=-0.1))
+
+
+```
+
+
+
+
+
+
+
+## Conclusion
+
+The relationship between the price of maple syrup across various states and their average income is generally weak, suggesting that changes in maple syrup prices don't consistently correlate strongly with average income. However, there are instances where a trend emerges, hinting that in certain places, a higher average income might correspond to higher maple syrup prices. While this correlation isn't universally strong, it implies that economic factors could influence maple syrup pricing, potentially leading to variations in pricing based on local economic conditions.
+
+Over the period from 2000 to 2021, the price of maple syrup has demonstrated a relatively weak correlation with changes in the average income within a specific state. This suggests that variations in maple syrup prices over this time span have not consistently or significantly aligned with shifts in average income. Other factors beyond average income, such as production levels, market demand, supply dynamics, and external economic influences, likely play a more prominent role in driving the fluctuations in maple syrup prices within that state.
+
+
+
+
+## Data Source
+
+https://fred.stlouisfed.org/series/MEHOINUSMIA672N
+https://fred.stlouisfed.org/release/tables?rid=110&eid=257197&od=2021-01-01#
+https://www.kaggle.com/datasets/datasciencedonut/maple-syrup-production-in-the-usa-2000-2021
+
+
+
+
+
+
